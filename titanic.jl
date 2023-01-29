@@ -37,14 +37,6 @@ passenger_id_splits = DataFrame(
 titanic[!, :passenger_id_a] = passenger_id_splits[!, :passenger_id_a]
 titanic[!, :passenger_id_b] = passenger_id_splits[!, :passenger_id_b]
 
-titanic[!, :passenger_id_a] = categorical(titanic[!, :passenger_id_a])
-titanic[!, :passenger_id_b] = categorical(titanic[!, :passenger_id_b])
-
-titanic[!, :Transported] = categorical(titanic[!, :Transported])
-describe(titanic)
-
-schema(titanic)
-
 #   2 │ HomePlanet               Earth                Mars                   201  Union{Missing, String7}
 
 titanic[!, :Name] = coalesce.(titanic[!, :Name], "Unknown Unknown")
@@ -70,27 +62,52 @@ y, X = unpack(titanic, ==(:Transported), rng=123)
 
 describe(X)
 
-X = coerce(X,
+coerce!(X,
   :PassengerId => Continuous,
-  :HomePlanet => Multiclass,
-  # HomePlanet
-  :CryoSleep => Multiclass,
-  # TODO: split this
-  :Cabin => Multiclass,
-  :Destination => Multiclass,
-  # Age
-  :VIP => Multiclass,
+  :HomePlanet => OrderedFactor,
+  :CryoSleep => OrderedFactor,
+  :Cabin => OrderedFactor,
+  :Destination => OrderedFactor,
+  :VIP => OrderedFactor,
   :RoomService => Continuous,
   :FoodCourt => Continuous,
   :ShoppingMall => Continuous,
   :Spa => Continuous,
   :VRDeck => Continuous,
-  # TODO: split this
-  :Name => Multiclass,
   :passenger_id_a => Continuous,
-  :passenger_id_b => Multiclass
+  :passenger_id_b => OrderedFactor
 )
+select!(X, Not([:Name]))
+y = coerce(y, OrderedFactor)
 
-describe(X)
+first(X, 3)
+
+X[!, :HomePlanet] = int(X[!, :HomePlanet])
+
+X[!, :CryoSleep] = int(X[!, :CryoSleep])
+X[!, :Cabin] = int(X[!, :Cabin])
+X[!, :Destination] = int(X[!, :Destination])
+X[!, :VIP] = int(X[!, :VIP])
+X[!, :passenger_id_b] = int(X[!, :passenger_id_b])
+
 schema(X)
-# -------- evaluation
+
+
+y = convert(AbstractVector{OrderedFactor}, y)
+
+EvoTreeClassifier = @load EvoTreeClassifier pkg = EvoTrees
+model = EvoTreeClassifier()
+
+mach = machine(model, X, y)
+measures(m -> m.target_scitype <: AbstractVector{OrderedFactor{2}})
+fit!(mach)
+
+measures(Union{AbstractString,Regex})
+
+measures()
+
+
+evaluate(model, X, y,
+  resampling=CV(shuffle=true),
+  measures=[log_loss, accuracy],
+  verbosity=0)
