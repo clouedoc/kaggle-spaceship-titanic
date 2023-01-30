@@ -1,9 +1,12 @@
 using DataFrames
 using MLJ
+using CategoricalArrays
+using CSV
+
+FillImputer = @load FillImputer pkg = MLJModels
 
 "Parses Titanic input data. "
 function parse_titanic_data(X::DataFrame)
-  dropmissing!(X)
   passenger_id_splits = DataFrame(
     [
     (passenger_id_a=first, passenger_id_b=last) for (first, last) in split.(X[!, :PassengerId], "_")
@@ -34,5 +37,23 @@ function parse_titanic_data(X::DataFrame)
   X[!, :Destination] = int(X[!, :Destination])
   X[!, :VIP] = int(X[!, :VIP])
   X[!, :passenger_id_b] = int(X[!, :passenger_id_b])
+
+  # Replace missing data
+  X = MLJ.transform(fit!(machine(FillImputer(), X)), X)
+  return X
+end
+
+"Return Spaceship Titanic training data"
+function titanic_training_data()::Tuple{CategoricalArray{Bool},DataFrame}
+  train_data = CSV.read("./data/train.csv", DataFrame)
+  y, X = unpack(train_data, ==(:Transported), rng=123)
+  X = parse_titanic_data(X)
+  y = coerce(y, OrderedFactor)
+  return y, X
+end
+
+function titanic_testing_data()::DataFrame
+  test_data = CSV.read("./data/test.csv", DataFrame)
+  X = parse_titanic_data(test_data)
   return X
 end
