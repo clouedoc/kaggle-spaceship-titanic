@@ -2,8 +2,6 @@
 
 > Predict which passengers are transported to an alternate dimension
 
-Hello!
-
 This project contains my entry for the [spaceship-titanic](https://www.kaggle.com/competitions/spaceship-titanic/overview) Kaggle competition.
 
 It currently gets a **78%** score. I'll take it :).
