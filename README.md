@@ -14,3 +14,4 @@ It currently gets a **78%** score. I'll take it :).
   - [ ] Exploit Cabin data
   - [ ] Exploit first name and last name
 - [ ] Hyperparameter tuning for the model
+- [x] Testing with and without balancing -> balanced model performs 0.1% better compared to unbalanced
