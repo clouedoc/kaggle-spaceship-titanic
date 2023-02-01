@@ -7,6 +7,7 @@ FillImputer = @load FillImputer pkg = MLJModels
 
 "Parses Titanic input data. "
 function parse_titanic_data(X::DataFrame)
+  ## ----- Split :PassengerId
   passenger_id_splits = DataFrame(
     [
     (passenger_id_a=first, passenger_id_b=last) for (first, last) in split.(X[!, :PassengerId], "_")
@@ -14,7 +15,29 @@ function parse_titanic_data(X::DataFrame)
   )
   X[!, :passenger_id_a] = passenger_id_splits[!, :passenger_id_a]
   X[!, :passenger_id_b] = passenger_id_splits[!, :passenger_id_b]
-  select!(X, Not([:Name]))
+
+  ## ----- Split :Cabin
+  coerce!(X,
+    :Cabin => OrderedFactor
+  )
+  cabin_filler = FillImputer(features=[:Cabin])
+  cabin_machine = machine(cabin_filler, X) |> fit!
+  X = MLJ.transform(cabin_machine, X)
+  cabin_splits = DataFrame(
+    [
+    (cabin_a=first, cabin_b=middle, cabin_c=last) for (first, middle, last) in split.(convert.(String, X[!, :Cabin]), "/", limit=3)
+  ]
+  )
+  X[!, :cabin_a] = cabin_splits[!, :cabin_a]
+  X[!, :cabin_b] = parse.(Int, cabin_splits[!, :cabin_b])
+  X[!, :cabin_c] = cabin_splits[!, :cabin_c]
+  coerce!(X,
+    :cabin_a => OrderedFactor,
+    :cabin_b => Continuous,
+    :cabin_c => OrderedFactor
+  )
+
+  ## Final coercion
 
   coerce!(X,
     :PassengerId => Continuous,
@@ -29,7 +52,10 @@ function parse_titanic_data(X::DataFrame)
     :Spa => Continuous,
     :VRDeck => Continuous,
     :passenger_id_a => Continuous,
-    :passenger_id_b => OrderedFactor
+    :passenger_id_b => OrderedFactor,
+    :cabin_a => OrderedFactor,
+    :cabin_b => OrderedFactor,
+    :cabin_c => OrderedFactor,
   )
   X[!, :HomePlanet] = int(X[!, :HomePlanet])
   X[!, :CryoSleep] = int(X[!, :CryoSleep])
@@ -37,6 +63,11 @@ function parse_titanic_data(X::DataFrame)
   X[!, :Destination] = int(X[!, :Destination])
   X[!, :VIP] = int(X[!, :VIP])
   X[!, :passenger_id_b] = int(X[!, :passenger_id_b])
+  X[!, :cabin_a] = int(X[!, :cabin_a])
+  X[!, :cabin_c] = int(X[!, :cabin_c])
+
+  select!(X, Not([:Name]))
+  select!(X, Not([:PassengerId]))
 
   # Replace missing data
   X = MLJ.transform(fit!(machine(FillImputer(), X)), X)
